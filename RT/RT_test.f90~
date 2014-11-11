@@ -45,7 +45,6 @@ write(1,*) q(j),psi2(j),V(j)
 END DO
 
 ! calculate hamitonian
-H=0.0D0
 DO j=1,N
  DO k=1,N
  if (j==k) then
@@ -56,7 +55,6 @@ DO j=1,N
  END DO
 END DO
 !time evolution
-
 call CN(psi_init,H,dt,psi)
 
 DO j=1,N
