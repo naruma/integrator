@@ -1,0 +1,76 @@
+PROGRAM test
+! this program is reproduced from 
+! "Numerical approaches to time evolution
+! of complex quantum systems"
+use time_evolution
+implicit none
+! unit
+real(8),parameter :: um=1.0D0,ut=1.0D0,ul=1.0D0
+! grid
+integer             :: N,k
+real(8),allocatable :: q(:)
+integer          :: j
+! wavepackets
+real(8)           :: sigma,q0,p0
+real(8),allocatable :: V(:),psi2(:)
+real(8)           :: V0,m,omega0,a
+complex(kind(0d0)),allocatable  :: psi_init(:),psi(:),H(:,:)
+real(8)           :: dt=0.01
+!prepare an intial condition
+N=2024
+
+allocate(q(N),V(N),psi_init(N),psi(N),psi2(N),H(N,N))
+
+Do j=1,N
+  q(j)=(dble(j)/dble(N)-0.5D0)*20.0D0
+END DO
+
+!wavepacket
+m=um
+omega0=4.0D0/ut
+a=0.02/ul**2
+V0=um*ul**2/(ut**2)
+p0=um*ul/ut
+q0=-5.0D0*ul
+sigma=ul/sqrt(2.0D0)
+
+DO j=1,N
+psi_init(j)=gaussian(q(j),sigma,q0,p0)
+V(j)=DW(q(j),V0,m,omega0,a) 
+psi2(j)=abs(psi_init(j))**2
+END DO
+
+DO j=1,N
+write(1,*) q(j),psi2(j),V(j)
+END DO
+
+! calculate hamitonian
+DO j=1,N
+ DO k=1,N
+ if (j==k) then
+ H(j,k)=-1.0D0*hbar**2/um+V(j)
+ else if ( abs(j-k) == 1) then
+ H(j,k)=0.5D0*hbar**2/um
+ end if
+ END DO
+END DO
+!time evolution
+call CN(psi_init,H,dt,psi)
+
+deallocate(q,V,psi_init,psi)
+
+contains
+complex(kind(0d0)) function gaussian(q,sigma,q0,p0)
+real(8),intent(IN) :: q,sigma,q0,p0
+ gaussian=1.0D0/(2.0D0*pi*sigma**2)**(1.0D0/4.0D0) &
+         *exp(-((q-q0)/2.0D0*sigma)**2+i*p0*q/hbar)
+end function gaussian 
+
+
+real(8) function DW(q,V0,m,omega0,a)
+ real(8),intent(IN) :: q,V0,m,omega0,a
+! Double well potential
+ DW=V0+m*(omega0**2)*(-q**2+a*q**4)
+end function DW
+
+END PROGRAM test
