@@ -77,6 +77,12 @@ allocate (IPIV(N))
  ! calculate vector v(:,k) k=1,...M
 
  v(:,0)=psi_init(:)
+ call zgemv('N',N,N,(1.0D0,0.0D0),2.0D0*temp_H,N,v(:,0),1,(0.0D0,0.0D0),v(:,1),1)
+ DO k=1,N-1
+ call zgemv('N',N,N,(1.0D0,0.0D0),2.0D0*temp_H,N,v(:,k),1,(0.0D0,0.0D0),v(:,k+1),1)
+ v(:,k+1)=v(:,k+1)-v(:,k-1)
+ END DO
+
 ! v(:,1)=H(:,:)*v(:,0)
 !DO k=1,N-1
 ! v(:,k+1)=2.0D0*H(:,:)*v(:,k)-v(:,k-1)
