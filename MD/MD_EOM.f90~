@@ -7,9 +7,9 @@ MODULE MD_EOM
         ! The output:
         ! q: new coordinate, p:new momentum
         !
-        implicit none
+  implicit none
 contains
-!------------------------------------------------------------
+
 ! Velet method
 SUBROUTINE VV(q,p,m,dt)
 ! Velocity velet method
@@ -32,22 +32,23 @@ SUBROUTINE PV(q,p,m,dt)
  ! Velocity velet method
  real(8),intent(INout) :: q(:),p(:)
  real(8),intent(IN) :: m(:),dt
- real(8),dimension(size(q)) :: F,F_new,q_new,p_new,temp_q
+ real(8),dimension(size(q)) :: F,F_new,q_new,p_new
 
- temp_q=(q+0.5d0*dt*p/m)**(size(q)
- call force(temp_q,F)
- p_new=p+dt*F
- q_new=q+0.5D0*dt*(p_new+p)/m**2
+ call force((q+0.5d0*dt*p/m)**(size(q)),F)
+ p_new=p+dt*(F_new-F)/m
+ q_new=q+dt*p/m+0.5D0*(dt**2)*F_new/m
+ call force(q_new,F_new)
 
  q=q_new
  p=p_new
+
+
+
 END SUBROUTINE PV
 
-!-------------------------------------------------------------
-SUBROUTINE GEAR(q,p,dt,m)
+SUBROUTINE GEAR
 ! Gear method
-! dt will be optimized during the multi-value method
-! set initial condition and dt by  
+
 
 END SUBROUTINE GEAR      
 
