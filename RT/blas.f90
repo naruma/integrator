@@ -1,5 +1,0 @@
-MODULE BLAS
- IMPLICIT NONE
-contains
- SUBROUTINE 
- 

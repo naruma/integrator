@@ -44,7 +44,7 @@ SUBROUTINE PV(q,p,m,dt)
 END SUBROUTINE PV
 
 !-------------------------------------------------------------
-SUBROUTINE GEAR(q,p,dt,m)
+SUBROUTINE GEAR(q,p,m,dt)
 ! Gear method
 ! dt will be optimized during the multi-value method
 ! set initial condition and dt by  
