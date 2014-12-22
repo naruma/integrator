@@ -1,0 +1,6 @@
+#!/bin/csh
+
+foreach f (*.f90)
+ cp $f ${f:r}.f03 
+end
+

@@ -1,0 +1,151 @@
+MODULE MD_EOM
+        ! this routine numerically calculate the q,p after dt 
+        ! by solving Netwon equation of motion.
+        ! The input: 
+        ! q:coordinate, p:momentum, dt:time interval
+        ! m:mass
+        ! The output:
+        ! q: new coordinate, p:new momentum
+        !
+        ! the keyword of calc_EOM:
+        ! VV    : 'velocity verlet method' Dec 12
+        ! PV    : 'Position verlet method' Dec 12
+        ! GEAR  : 'Gear method' Dec 12
+        ! 
+        implicit none
+contains 
+SUBROUTINE EOM(q_init,p_init,m,dt,   &  !initial q, initial p, mass, time interval  
+	       calc_EOM,force,       & !calculation method, force(name of subroutine)
+               NSTEP               )    ! N step 
+ real(8),intent(IN) :: q_init(:),p_init(:),m(:)
+ real(8),intent(IN) :: dt
+ integer,intent(IN) :: NSTEP
+ character,intent(IN) :: calc_EOM ! calc_EOM
+! force 
+ interface
+      subroutine force(x_i,F_i)
+         real(8),intent(IN) :: x_i(:)
+         real(8),intent(OUT):: F_i(size(x_i))
+      end subroutine
+ end interface
+! 
+  integer          :: i
+  
+
+  if (calc_EOM == "VV" ) then
+   DO i=1,NSTEP
+    call VV(q_init,p_init,m,dt,force)
+   END DO
+  else if( calc_EOM == "PV" ) then
+   DO i=1,NSTEP
+    call PV(q_init,p_init,m,dt,force)
+   END DO
+  else if (calc_EOM == "GEAR" ) then
+    call gear_EOM(q_init,p_init,m,dt,Nstep,force)
+  else
+    write(*,*) "invalid calculation method of EOM"
+    STOP
+  end if
+
+END SUBROUTINE EOM
+!-----------------------------------------------------------
+!            calculation of Equation of motion
+!-----------------------------------------------------------
+! Velet method
+SUBROUTINE VV(q,p,m,dt,force)
+! Velocity velet method
+ real(8),intent(INout) :: q(:),p(:)
+ real(8),intent(IN) :: m(:),dt
+ real(8),dimension(size(q)) :: F,F_new,q_new,p_new
+ interface
+ subroutine force(x_i,F_i)
+  real(8),intent(IN) :: x_i(:)
+  real(8),intent(OUT):: F_i(size(x_i))
+ end subroutine
+ end interface
+
+ call force(q,F)
+ q_new=q+dt*p/m+0.5D0*(dt**2)*F_new/m
+ call force(q_new,F_new)
+ p_new=p+0.5D0*dt*(F_new-F)/m
+
+ q=q_new
+ p=p_new
+
+END SUBROUTINE VV
+
+SUBROUTINE PV(q,p,m,dt,force)
+! position velet method
+ real(8),intent(INout) :: q(:),p(:)
+ real(8),intent(IN) :: m(:),dt
+ real(8),dimension(size(q)) :: F,F_new,q_new,p_new,temp_q
+ interface
+ subroutine force(x_i,F_i)
+  real(8),intent(IN) :: x_i(:)
+  real(8),intent(OUT):: F_i(size(x_i))
+ end subroutine
+ end interface
+
+ temp_q=(q+0.5d0*dt*p/m)**(size(q))
+ call force(temp_q,F)
+ p_new=p+dt*F
+ q_new=q+0.5D0*dt*(p_new+p)/m**2
+
+ q=q_new
+ p=p_new
+
+END SUBROUTINE PV
+!---------------------------------------------------
+SUBROUTINE gear_EOM(q_init,p_init,m,dt,Nstep,force)
+ real(8),intent(IN)         :: q_init(:),p_init(:),dt 
+ real(8),intent(IN),save    :: m(:)
+ integer,intent(IN)         :: Nstep 
+ interface
+ subroutine force(x_i,F_i)
+  real(8),intent(IN) :: x_i(:)
+  real(8),intent(OUT):: F_i(size(x_i))
+ end subroutine
+ end interface
+ integer               :: Ndim !degree of Gear method
+ integer               :: i
+ real(8),allocatable   :: y(:,:)
+
+ !initial condition
+ Ndim=6                 !Default
+
+ allocate(y(size(q_init),0:Ndim-1))
+ 
+ y=0.0D0
+
+ y(:,0)=q_init(:)
+ y(:,1)=p_init(:)/m(:)
+
+ DO i=1,Nstep
+   call Gear(dt,2,y,force_m)
+
+ END DO
+
+contains 
+
+subroutine force_m(x_i,F_m_i)
+   real(8),intent(IN) :: m(:)
+   interface
+     subroutine force(x_i,F_i)
+       real(8),intent(IN) :: x_i(:)
+       real(8),intent(OUT) :: F_i(size(x_i))
+     end subroutine
+   end interface
+ 
+   call force(x_i,F_i)
+
+end subroutine force_m
+
+END SUBROUTINE gear_EOM
+!SUBROUTINE LAI
+! LAI method
+
+!END SUBROUTINE LAI      
+
+END MODULE MD_EOM
+
+

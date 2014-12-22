@@ -35,10 +35,10 @@ contains
 SUBROUTINE EOM_ini(q_init,p_init,m,dt,   &  !initial q, initial p, mass, time interval  
 	           calc_EOM,force,       & !calculation method, force(name of subroutine)
                    NSTEP              )    ! N step,N dim 
- real(8) :: q_init(:),p_init(:),m(:)
- real(8) :: dt
- integer :: NSTEP
- character(*) :: calc_EOM ! calc_EOM
+ real(8),intent(IN) :: q_init(:),p_init(:),m(:)
+ real(8),intent(IN) :: dt
+ integer,intent(IN) :: NSTEP
+ character(*),intent(IN) :: calc_EOM ! calc_EOM
  interface
       subroutine force(x_i,F_i)
          real(8),intent(IN) :: x_i(:)

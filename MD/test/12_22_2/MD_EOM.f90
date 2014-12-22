@@ -14,47 +14,32 @@ MODULE MD_EOM
         ! RK4   : '4th Runge-kutta method' Dec 12
 
         implicit none
-        private VV, PV,gear_EOM,RK4_EOM
-        public EOM_ini, EOM
-        integer                    :: N
-        real(8),allocatable        :: m(:)
-        real(8),allocatable        :: q_init(:),p_init(:)
-        real(8)                    :: dt
-        integer                    :: NSTEP
-        character(*),allocatable   :: calc_EOM ! calc_EOM
-        ! force 
-         interface
-                subroutine force(x_i,F_i)
-                 real(8),intent(IN) :: x_i(:)
-                 real(8),intent(OUT):: F_i(size(x_i))
-                end subroutine
-         end interface
-         save
-contains
- 
-SUBROUTINE EOM_ini(q_init,p_init,m,dt,   &  !initial q, initial p, mass, time interval  
-	           calc_EOM,force,       & !calculation method, force(name of subroutine)
-                   NSTEP              )    ! N step,N dim 
- real(8) :: q_init(:),p_init(:),m(:)
- real(8) :: dt
- integer :: NSTEP
- character(*) :: calc_EOM ! calc_EOM
+        real(8),save   :: m(:)
+        interface
+         subroutine force(x_i,F_i)
+          real(8),intent(IN) :: x_i(:)
+          real(8),intent(OUT):: F_i(size(x_i))
+         end subroutine
+        end interface
+
+contains 
+SUBROUTINE EOM(q_init,p_init,m,dt,   &  !initial q, initial p, mass, time interval  
+	       calc_EOM,force,       & !calculation method, force(name of subroutine)
+               NSTEP               )    ! N step 
+ real(8),intent(IN) :: q_init(:),p_init(:),m(:)
+ real(8),intent(IN) :: dt
+ integer,intent(IN) :: NSTEP
+ character(*),intent(IN) :: calc_EOM ! calc_EOM
+! force 
  interface
       subroutine force(x_i,F_i)
          real(8),intent(IN) :: x_i(:)
          real(8),intent(OUT):: F_i(size(x_i))
       end subroutine
  end interface
- integer :: N
- save
-
- N=size(q_init)
- 
-END SUBROUTINE EOM_ini
 ! 
-SUBROUTINE EOM()
   integer          :: i
-  real(8)          :: q(N),p(N)
+  real(8)          :: q(size(q_init)),p(size(p_init))
 
    q=q_init
    p=p_init
@@ -62,18 +47,18 @@ SUBROUTINE EOM()
 !  write(*,*) calc_EOM
   if (calc_EOM == "VV" ) then
    DO i=1,NSTEP
-    call VV(q,p,dt,force)
+    call VV(q,p,m,dt,force)
     write(1,*) i*dt,q(1)               !debug
    END DO
   else if( calc_EOM == "PV" ) then
    DO i=1,NSTEP
-    call PV(q,p,dt,force)
+    call PV(q,p,m,dt,force)
     write(2,*) i*dt,q(1)              !debug
    END DO
   else if (calc_EOM == "GEAR" ) then
-    call gear_EOM(q_init,p_init,dt,Nstep,force)
+    call gear_EOM(q_init,p_init,m,dt,Nstep,force)
   else if (calc_EOM == "RK4" ) then
-    call RK4_EOM(q_init,p_init,dt,Nstep,force)
+    call RK4_EOM(q_init,p_init,m,dt,Nstep,force)
   else
     write(*,*) "invalid calculation method of EOM"
     STOP
@@ -84,7 +69,7 @@ END SUBROUTINE EOM
 !            calculation of Equation of motion
 !-----------------------------------------------------------
 ! Velet method
-SUBROUTINE VV(q,p,dt,force)
+SUBROUTINE VV(q,p,m,dt,force)
 ! Velocity velet method
  real(8),intent(INOUT) :: q(:),p(:)
 ! real(8),intent(IN) :: m(:)
@@ -107,7 +92,7 @@ SUBROUTINE VV(q,p,dt,force)
 
 END SUBROUTINE VV
 
-SUBROUTINE PV(q,p,dt,force)
+SUBROUTINE PV(q,p,m,dt,force)
 ! position velet method
  real(8),intent(INOUT) :: q(:),p(:)
  real(8),intent(IN) :: dt
@@ -131,12 +116,12 @@ SUBROUTINE PV(q,p,dt,force)
 
 END SUBROUTINE PV
 !---------------------------------------------------
-SUBROUTINE gear_EOM(q_init,p_init,dt,Nstep,force)
+SUBROUTINE gear_EOM(q_init,p_init,m,dt,Nstep,force)
  use ODE
  real(8),intent(IN)         :: q_init(:),p_init(:),dt 
 ! real(8),intent(IN),save         :: m(:)
  integer,intent(IN)         :: Nstep 
- interface
+ interface,save
  subroutine force(x_i,F_i)
   real(8),intent(IN) :: x_i(:)
   real(8),intent(OUT):: F_i(size(x_i))
@@ -144,12 +129,14 @@ SUBROUTINE gear_EOM(q_init,p_init,dt,Nstep,force)
  end interface
  integer               :: Ndim ! degree of Gear method
  integer               :: Ndrv ! solve Ndrv-th order ODE
- integer               :: i
+ integer               :: i,N
  real(8),allocatable   :: y(:,:)
 
  !initial condition(Default)
  Ndim=6                 
  Ndrv=2                 
+
+ N=size(q_init)
 
 if (Ndrv==2) then
 ! y(:,:)= [q^(0) q^(1) q'^(2),...] 
@@ -213,6 +200,7 @@ subroutine f_first(x_i,f_i)
     real(8),intent(IN) :: x_i(:)
     real(8),intent(OUT) :: f_i(:)
     integer             :: i
+    integer             :: N
 ! interface
 ! subroutine force(x_i,F_i)
 !  real(8),intent(IN) :: x_i(:)
@@ -232,10 +220,10 @@ end subroutine f_first
 
 END SUBROUTINE gear_EOM
 !---------------------------------------------
-subroutine RK4_EOM(q_init,p_init,dt,Nstep,force)
+subroutine RK4_EOM(q_init,p_init,m,dt,Nstep,force)
  use ODE
  real(8),intent(IN)         :: q_init(:),p_init(:),dt 
-! real(8),intent(IN)         :: m(:)
+ real(8),intent(IN)         :: m(:)
  integer,intent(IN)         :: Nstep 
  interface
  subroutine force(x_i,F_i)
@@ -247,6 +235,7 @@ subroutine RK4_EOM(q_init,p_init,dt,Nstep,force)
  real(8),allocatable   :: y(:)
 
 
+ N=size(q_init)
 ! y(:,:)=[q q^(1) q^(2) q^(3) ... ]
 !        [p p^(1) p^(2) p^(3) ... ]
 !
@@ -268,11 +257,12 @@ subroutine RK4_EOM(q_init,p_init,dt,Nstep,force)
 
  
 contains 
-  subroutine f_first(x_i,f_i)
+  subroutine f_first(x_i,f_i,force)
 ! function for first order ODE
     real(8),intent(IN) :: x_i(:)
     real(8),intent(OUT) :: f_i(:)
     integer             :: i
+    integer             :: N
  interface
  subroutine force(x_i,F_i)
   real(8),intent(IN) :: x_i(:)

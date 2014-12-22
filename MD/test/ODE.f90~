@@ -16,6 +16,7 @@ SUBROUTINE RK4(dt,y,func)
 
  ! write(*,*) "foo"
  call func(y,temp_f)
+ write(*,*) "k1"
  k1(:)=dt*temp_f(:)
 
  call func(y+0.50D0*k1,temp_f)
