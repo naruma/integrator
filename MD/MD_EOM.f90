@@ -66,7 +66,6 @@ SUBROUTINE EOM()
   integer          :: i
   real(8)          :: q(MD%N),p(MD%N)
 
- write(*,*) MD%q_init
    q=MD%q_init
    p=MD%p_init
 
@@ -155,9 +154,13 @@ if (Ndrv==2) then
 
  y(:,0)=MD%q_init(:)
  y(:,1)=MD%p_init/MD%m
+ call MD_force(y(:,0),y(:,2))
+
+ write(*,*) "y for gear is", y(1,0)
 
  DO i=1,MD%NSTEP
-   call Gear(MD%dt,2,y,MD_force_m)
+   call Gear(MD%dt,2,y(:,0:),MD_force_m)
+   write(4,*) i*MD%dt, y(1,0)  !debug
  END DO
 
 else if (Ndrv == 1) then
@@ -177,13 +180,15 @@ else if (Ndrv == 1) then
   END DO
   call MD_force(y(1:MD%N,0),y(MD%N+1:2*MD%N,1))
 
+  write(*,*) "y for gear is", y(1,0)
   DO i=1,MD%NSTEP
-   call Gear(MD%dt,1,y,f_first)
+   call Gear(MD%dt,1,y(:,0:),f_first)
+   write(5,*) i*MD%dt, y(1,0)  !debug
   end do
   
 end if
 
- deallocate(y)
+deallocate(y)
 
 END SUBROUTINE gear_EOM
 !---------------------------------------------
