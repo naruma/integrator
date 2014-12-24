@@ -74,18 +74,18 @@ SUBROUTINE EOM()
 !  write(*,*) calc_EOM
   if (calc_EOM == "VV" ) then
    DO i=1,NSTEP
-    call VV(q,p,MD%dt,MD_force)
+    call VV(q,p)
     write(1,*) i*dt,q(1)               !debug
    END DO
   else if( calc_EOM == "PV" ) then
    DO i=1,NSTEP
-    call PV(q,p,MD%dt,MD_force)
+    call PV(q,p)
     write(2,*) i*dt,q(1)              !debug
    END DO
   else if (calc_EOM == "GEAR" ) then
-    call gear_EOM(MD%q_init,MD%p_init,MD%dt,MD%Nstep,MD_force)
+    call gear_EOM()
   else if (calc_EOM == "RK4" ) then
-    call RK4_EOM(MD%q_init,MD%p_init,MD%dt,MD%Nstep,MD_force)
+    call RK4_EOM()
   else
     write(*,*) "invalid calculation method of EOM"
     STOP
@@ -100,7 +100,7 @@ SUBROUTINE VV(q,p,dt,force)
 ! Velocity velet method
  real(8),intent(INOUT) :: q(:),p(:)
 ! real(8),intent(IN) :: m(:)
- real(8),intent(IN) :: dt
+ real(8), pointer :: dt => MD%dt
  real(8),dimension(size(q)) :: F,F_new,q_new,p_new
  interface
  subroutine force(x_i,F_i)

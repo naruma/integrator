@@ -7,12 +7,18 @@ PROGRAM test_MD
      p_init=1.0D0
      m=1.0D0
 
-     call EOM_ini(q_init,p_init,m,0.01d0,"VV",harmonic,1000)
+     call EOM_INI(q_init,p_init,m,0.01d0,"VV",harmonic,1000)
      call EOM()
-     call EOM(q_init,p_init,m,0.01d0,"PV",harmonic,1000)
+     call EOM_END()
+     call EOM_ini(q_init,p_init,m,0.01d0,"PV",harmonic,1000)
      call EOM()
-     call EOM(q_init,p_init,m,0.01d0,"RK4",harmonic,1000)
+     call EOM_END()
+     call EOM_ini(q_init,p_init,m,0.01d0,"RK4",harmonic,1000)
      call EOM()
+     call EOM_END()
+     call EOM_ini(q_init,p_init,m,0.01d0,"GEAR",harmonic,1000)
+     call EOM()
+     call EOM_END()
 
       contains
               subroutine harmonic(q,F)

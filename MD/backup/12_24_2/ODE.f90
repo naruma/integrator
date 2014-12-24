@@ -41,7 +41,7 @@ SUBROUTINE Gear(dt,n,y,func)
         ! as an input.
         real(8),intent(IN) :: dt
         integer,intent(IN) :: n
-        real(8),intent(INOUT) :: y(:,0:)
+        real(8),intent(INOUT) :: y(:,:)
         integer               :: r,y_dim,i,count
         real(8),allocatable   :: y_np1(:,:),new_y_np1(:,:),B(:,:),C(:),f_np1(:)
         real(8)               :: epsilon=1.0D-5
@@ -52,61 +52,42 @@ SUBROUTINE Gear(dt,n,y,func)
 	  end subroutine func
 	end interface
 
-        y_dim=size(y(:,0))
-        r=size(y(1,0:))
+        y_dim=size(y(:,1))
+        r=size(y(1,:))
 
         ! make Y_N vector
         DO i=0,r-1
                 y(:,i)=(dt**i)*y(:,i)/fac(i)
         END DO
         
-	write(*,*) "before y(1,0),y(1,1),y(1,2)",y(1,0),y(1,1),y(1,2) ! debug
-
         allocate(y_np1(N,0:r-1),new_y_np1(N,0:r-1),B(r,r),C(r),f_np1(N))
 
         ! Predictor
         call get_gear_parameter(r,n,B,C)
-	write(*,*) "B(2,4) n", B(2,4), n ! debug
-        call dgemm('N','T',N,r,r,1.0D0,y(:,0:r-1),N,B,r,0.0D0,y_np1(:,0:r-1),N)
+        call dgemm('N','T',N,r,r,1.0D0,y(:,0:r-1),N,B,N,0.0D0,y_np1(:,0:r-1))
        
-	write(*,*) "after predictor y(1,0),y(1,1),y(1,2)",y(1,0),y(1,1),y(1,2) ! debug
         !corrector
         count=0
         call func(y_np1(:,0),f_np1)
+        do while ( maxval(f_np1(:)-y_np1(:,1)) > epsilon)
 
         if (n==1) then
-	write(*,*) "maxval of f_np1,y_np1",maxval((f_np1(:)*dt-y_np1(:,1))) !debug
-        do while ( abs(maxval(f_np1(:)*dt-y_np1(:,1))) > epsilon)
                 DO i=1,y_dim
-                new_y_np1(i,:)=y_np1(i,:)+(f_np1(i)*dt-y_np1(i,1))*C(:)
+                new_y_np1(i,:)=y_np1(i,:)+(f_np1(i)-y_np1(i,1))*dt*C(:)
                 END DO
-	        call func(new_y_np1(:,0),f_np1)
-	        y_np1=new_y_np1
-		count=count+1
-	end do
         else if(n==2) then
-	write(*,*) "maxval of f_np1,y_np1",maxval((0.5d0*f_np1(:)*(dt**2)-y_np1(:,2))) !debug
-        do while ( abs(maxval(0.5d0*f_np1(:)*(dt**2)-y_np1(:,2))) > epsilon)
                 DO i=1,y_dim
-                new_y_np1(i,:)=y_np1(i,:)+(0.5d0*f_np1(i)*(dt**2)-y_np1(i,2))*C(:)
+                new_y_np1(i,:)=y_np1(i,:)+0.5d0*(f_np1(i)-y_np1(i,1))*(dt**2)*C(:)
                 END DO
-	        call func(new_y_np1(:,0),f_np1)
-	        y_np1=new_y_np1
-		count=count+1
-	end do
         else
                 write(*,*) "the order of ODE has to be 1 or 2"
                 stop
         end if
 
-	y=y_np1
-
-        DO i=0,r-1
-                y(:,i)=y(:,i)*fac(i)/(dt**i)
-        END DO
- 
-
-	write(*,*) "after corrector y(1,0),y(1,1),y(1,2)",y(1,0),y(1,1),y(1,2) ! debug
+        call func(new_y_np1(:,0),f_np1)
+        y_np1=new_y_np1
+        count=count+1
+        end do
 END SUBROUTINE Gear
 
 !   function f(y)
@@ -120,7 +101,7 @@ END SUBROUTINE Gear
         integer            :: i
 
  if (r==0) then
-         fac=1
+         fac=0
  else if(r .lt. 0) then
          write(*,*) "n! has to be n>0"
          stop

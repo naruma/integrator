@@ -16,20 +16,20 @@ MODULE MD_EOM
         implicit none
         private VV, PV,gear_EOM,RK4_EOM
         public EOM_ini, EOM
+	type MD_t
         integer                    :: N
         real(8),allocatable        :: m(:)
         real(8),allocatable        :: q_init(:),p_init(:)
         real(8)                    :: dt
         integer                    :: NSTEP
         character(*),allocatable   :: calc_EOM ! calc_EOM
-        ! force 
-         interface
+        contains
                 subroutine force(x_i,F_i)
                  real(8),intent(IN) :: x_i(:)
                  real(8),intent(OUT):: F_i(size(x_i))
                 end subroutine
-         end interface
-         save
+	end type MD_t
+        type(MD_t),private,save	    :: MD
 contains
  
 SUBROUTINE EOM_ini(q_init,p_init,m,dt,   &  !initial q, initial p, mass, time interval  
@@ -48,7 +48,14 @@ SUBROUTINE EOM_ini(q_init,p_init,m,dt,   &  !initial q, initial p, mass, time in
  integer :: N
  save
 
- N=size(q_init)
+ MD%q_init=q_init
+ MD%p_init=p_init
+ MD%m=m
+ MD%dt=dt
+ MD%NSTEP=NSTEP
+ MD%calc_EOM=calc_EOM
+ MD%N=size(q_init)
+ MD%force=force
  
 END SUBROUTINE EOM_ini
 ! 
@@ -56,24 +63,25 @@ SUBROUTINE EOM()
   integer          :: i
   real(8)          :: q(N),p(N)
 
-   q=q_init
-   p=p_init
+
+   q=MD%q_init
+   p=MD%p_init
 
 !  write(*,*) calc_EOM
   if (calc_EOM == "VV" ) then
    DO i=1,NSTEP
-    call VV(q,p,dt,force)
+    call VV(q,p,MD%dt,MD%force)
     write(1,*) i*dt,q(1)               !debug
    END DO
   else if( calc_EOM == "PV" ) then
    DO i=1,NSTEP
-    call PV(q,p,dt,force)
+    call PV(q,p,MD%dt,MD%force)
     write(2,*) i*dt,q(1)              !debug
    END DO
   else if (calc_EOM == "GEAR" ) then
-    call gear_EOM(q_init,p_init,dt,Nstep,force)
+    call gear_EOM(MD%q_init,MD%p_init,MD%dt,MD%Nstep,MD%force)
   else if (calc_EOM == "RK4" ) then
-    call RK4_EOM(q_init,p_init,dt,Nstep,force)
+    call RK4_EOM(MD%q_init,MD%p_init,MD%dt,MD%Nstep,MD%force)
   else
     write(*,*) "invalid calculation method of EOM"
     STOP
@@ -134,7 +142,6 @@ END SUBROUTINE PV
 SUBROUTINE gear_EOM(q_init,p_init,dt,Nstep,force)
  use ODE
  real(8),intent(IN)         :: q_init(:),p_init(:),dt 
-! real(8),intent(IN),save         :: m(:)
  integer,intent(IN)         :: Nstep 
  interface
  subroutine force(x_i,F_i)

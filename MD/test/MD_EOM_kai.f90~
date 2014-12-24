@@ -15,7 +15,7 @@ MODULE MD_EOM
 
         implicit none
         private VV, PV,gear_EOM,RK4_EOM
-        public EOM_INI, EOM,EOM_END
+        public EOM_ini, EOM
         interface
                 subroutine force(x_i,F_i)
                  real(8),intent(IN) :: x_i(:)
@@ -36,7 +36,7 @@ MODULE MD_EOM
         type(MD_t),private,save	    :: MD
 contains
  
-SUBROUTINE EOM_INI(q_init,p_init,m,dt,   &  !initial q, initial p, mass, time interval  
+SUBROUTINE EOM_ini(q_init,p_init,m,dt,   &  !initial q, initial p, mass, time interval  
 	           calc_EOM,force,       & !calculation method, MD_force(name of subroutine)
                    NSTEP              )    ! N step,N dim 
  real(8),intent(IN) :: q_init(:),p_init(:),m(:)
@@ -52,6 +52,7 @@ SUBROUTINE EOM_INI(q_init,p_init,m,dt,   &  !initial q, initial p, mass, time in
 
  MD%N=size(q_init)
  allocate(MD%q_init(MD%N),MD%p_init(MD%N),MD%m(MD%N))
+
  MD%q_init=q_init
  MD%p_init=p_init
  MD%m=m
@@ -59,7 +60,7 @@ SUBROUTINE EOM_INI(q_init,p_init,m,dt,   &  !initial q, initial p, mass, time in
  MD%NSTEP=NSTEP
  MD%calc_EOM=calc_EOM
  MD_force => force
-
+ 
 END SUBROUTINE EOM_ini
 ! 
 SUBROUTINE EOM()
@@ -90,14 +91,6 @@ SUBROUTINE EOM()
   end if
 
 END SUBROUTINE EOM
-
-SUBROUTINE EOM_END()
- deallocate(MD%q_init,MD%p_init,MD%m)
- MD%dt=0.0D0
- MD%NSTEP=0
- MD%calc_EOM=' '
- nullify(MD_force)
-END SUBROUTINE EOM_END
 !-----------------------------------------------------------
 !            calculation of Equation of motion
 !-----------------------------------------------------------
@@ -154,13 +147,9 @@ if (Ndrv==2) then
 
  y(:,0)=MD%q_init(:)
  y(:,1)=MD%p_init/MD%m
- call MD_force(y(:,0),y(:,2))
-
- write(*,*) "y for gear is", y(1,0)
 
  DO i=1,MD%NSTEP
-   call Gear(MD%dt,2,y(:,0:),MD_force_m)
-   write(4,*) i*MD%dt, y(1,0)  !debug
+   call Gear(MD%dt,2,y,MD_force_m)
  END DO
 
 else if (Ndrv == 1) then
@@ -180,15 +169,53 @@ else if (Ndrv == 1) then
   END DO
   call MD_force(y(1:MD%N,0),y(MD%N+1:2*MD%N,1))
 
-  write(*,*) "y for gear is", y(1,0)
   DO i=1,MD%NSTEP
-   call Gear(MD%dt,1,y(:,0:),f_first)
-   write(5,*) i*MD%dt, y(1,0)  !debug
+   call Gear(MD%dt,1,y,f_first)
   end do
   
 end if
+contains 
 
-deallocate(y)
+subroutine MD_force_m(x_i,F_m_i)
+! calculate F/m
+   real(8),intent(IN)  :: x_i(:)
+   real(8),intent(OUT) :: F_m_i(size(x_i))
+   real(8)             :: F_i(size(x_i))
+! interface
+! subroutine MD_force(x_i,F_i)
+!  real(8),intent(IN) :: x_i(:)
+!  real(8),intent(OUT):: F_i(size(x_i))
+! end subroutine
+! end interface
+
+   call MD_force(x_i,F_i)
+   
+   F_m_i=F_i/MD%m
+
+end subroutine MD_force_m
+
+
+subroutine f_first(x_i,f_i)
+! function for first order ODE
+    real(8),intent(IN) :: x_i(:)
+    real(8),intent(OUT) :: f_i(:)
+    integer             :: i
+! interface
+! subroutine MD_force(x_i,F_i)
+!  real(8),intent(IN) :: x_i(:)
+!  real(8),intent(OUT):: F_i(size(x_i))
+! end subroutine
+! end interface
+
+    if (mod(MD%N,2) .ne. 0 ) then
+        write(*,*) 'invalid dimension of array for the first order ODE'
+        stop
+    end if
+    DO i=1,MD%N/2
+     f_i(i)=x_i(i+MD%N/2)/MD%m(i)
+    END DO    
+     call MD_force(x_i(1:MD%N/2),f_i(MD%N/2+1:MD%N))
+end subroutine f_first
 
 END SUBROUTINE gear_EOM
 !---------------------------------------------
@@ -217,49 +244,26 @@ subroutine RK4_EOM()
    write(3,*) i*MD%dt, y(1)  !debug
   end do
 
-  deallocate(y) 
-
-end subroutine RK4_EOM
-
-subroutine MD_force_m(x_i,F_m_i)
-! calculate F/m
-   real(8),intent(IN)  :: x_i(:)
-   real(8),intent(OUT) :: F_m_i(size(x_i))
-   real(8)             :: F_i(size(x_i))
-! interface
-! subroutine MD_force(x_i,F_i)
-!  real(8),intent(IN) :: x_i(:)
-!  real(8),intent(OUT):: F_i(size(x_i))
-! end subroutine
-! end interface
-
-   call MD_force(x_i,F_i)
-   
-   F_m_i=F_i/MD%m
-
-end subroutine MD_force_m
-
-subroutine f_first(x_i,f_i)
+ 
+contains 
+  subroutine f_first(x_i,f_i)
 ! function for first order ODE
     real(8),intent(IN) :: x_i(:)
-    real(8),intent(OUT) :: f_i(size(x_i))
-    integer             :: i,S
-    
-     S=size(x_i)
+    real(8),intent(OUT) :: f_i(:)
+    integer             :: i
 
-    if (mod(S,2) .ne. 0 ) then
+    if (mod(MD%N,2) .ne. 0 ) then
         write(*,*) 'invalid dimension of array for the first order ODE'
         stop
     end if
-    DO i=1,S/2
-     f_i(i)=x_i(i+S/2)/MD%m(i)
+    DO i=1,MD%N/2
+     f_i(i)=x_i(i+MD%N/2)/MD%m(i)
     END DO    
-
-     call MD_force(x_i(1:S/2),f_i(S/2+1:S))
-
-end subroutine f_first
+     call MD_force(x_i(1:MD%N/2),f_i(MD%N/2+1:MD%N))
+  end subroutine f_first
 
 
+end subroutine RK4_EOM
 !SUBROUTINE LAI
 ! LAI method
 
